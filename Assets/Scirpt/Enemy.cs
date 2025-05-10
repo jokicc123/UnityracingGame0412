@@ -1,64 +1,43 @@
-﻿using System;
-using UnityEngine;
-using UnityEngine.AI; // 引入 NavMesh 的命名空間
-
-namespace CHANG
+﻿using UnityEngine;
+namespace CHANG 
 {
-    public class Enemy : MonoBehaviour
+    public class EnemyController : MonoBehaviour
     {
-        public Transform player;  // 玩家物件
-        public Transform endPoint;  // 追擊結束的終點（可設置為某個位置）
-        private NavMeshAgent agent;  // NavMeshAgent 用於控制移動
-        public float speed = 3.5f;  // 速度
+        public Transform player;
+        public float speed = 2f;
+        private Animator animator;
+        private bool ischase = false;
 
         void Start()
         {
-            // 獲取 NavMeshAgent 元件
-            agent = GetComponent<NavMeshAgent>();
-
-            // 設定預設速度（可以根據需要調整）
-            agent.speed = speed;
+            animator = GetComponent<Animator>();
         }
 
         void Update()
         {
-            // 每幀追蹤玩家
-            ChasePlayer();
-
-            // 檢查是否到達終點或碰到玩家
-            CheckArrival();
-        }
-
-        // 始終追擊玩家
-        private void ChasePlayer()
-        {
-            // 設定 NavMeshAgent 的目標為玩家
-            agent.SetDestination(player.position);
-        }
-
-        // 檢查是否到達終點或碰到玩家
-        private void CheckArrival()
-        {
-            // 檢查敵人是否到達終點
-            if (Vector3.Distance(transform.position, endPoint.position) < 1f)
+            if (player != null)
             {
-                StopChasing();  // 到達終點停止追擊
-                Debug.Log("Arrived at endpoint!");
-            }
+                float distance = Vector2.Distance(transform.position, player.position);
 
-            // 檢查敵人是否碰到玩家
-            if (Vector3.Distance(transform.position, player.position) < 1f)
-            {
-                StopChasing();  // 撞到玩家停止追擊
-                Debug.Log("Player is reached!");
-            }
-        }
+                if (distance > 1.5f)
+                {
+                    // 追擊
+                    Vector2 direction = (player.position - transform.position).normalized;
+                    transform.position += (Vector3)direction * speed * Time.deltaTime;
 
-        // 停止追擊玩家
-        private void StopChasing()
-        {
-            // 停止移動
-            agent.SetDestination(transform.position);
+                    animator.SetBool("追擊", true);
+                    animator.SetBool("攻擊", false);
+                    ischase = true;
+                }
+                else
+                {
+                    // 停下來攻擊
+                    animator.SetBool("追擊", false);
+                    animator.SetBool("攻擊", true);
+                    ischase = false;
+                }
+            }
         }
     }
 }
+

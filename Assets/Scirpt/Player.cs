@@ -1,23 +1,22 @@
 ﻿using UnityEngine;
 
 namespace CHANG
+
 {
     public class Player : MonoBehaviour
     {
         // 移動速度（正常走路）
         public float moveSpeed = 4f;
-
         // 移動速度（跑步）
         public float runSpeed = 7f;
-
         // 轉向時的旋轉速度
         public float rotationSpeed = 10f;
-
         // 用來參考攝影機方向的 Transform
         public Transform cameraTransform;
-
         private CharacterController chacon; // 控制角色移動的元件
         private Animator ani;               // 控制動畫的元件
+        public float terrainSpeedMultiplier = 0.5f; // 踩到 Terrain 時的減速倍率
+        private bool isOnTerrain = false;
 
         float turnSmoothVelocity; // 用於平滑轉向的中間變數
 
@@ -38,6 +37,7 @@ namespace CHANG
         {
             // 每幀都呼叫移動方法
             Move();
+            CheckTerrainBelow();
         }
 
         void Move()
@@ -71,6 +71,12 @@ namespace CHANG
                 // 判斷是否按住 Shift（跑步）
                 currentSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : moveSpeed;
 
+                if (isOnTerrain)
+                {
+                    currentSpeed *= terrainSpeedMultiplier;
+                }
+
+
                 // 如果按下S鍵，則角色朝反方向移動
                 if (v < 0)
                 {
@@ -95,5 +101,40 @@ namespace CHANG
             // 显示当前速度到 Console
             Debug.Log("目前速度：" + currentSpeed);
         }
+
+        void CheckTerrainBelow()
+        {
+            Ray ray = new Ray(transform.position + Vector3.up * 0.5f, Vector3.down);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 2f);
+
+            bool steppedOnRoad = false;
+            bool steppedOnTerrain = false;
+
+            foreach (RaycastHit hit in hits)
+            {
+                if (hit.collider.CompareTag("道路"))
+                {
+                    steppedOnRoad = true;
+                }
+
+                if (hit.collider.GetComponent<Terrain>() != null)
+                {
+                    steppedOnTerrain = true;
+                }
+            }
+
+            // 優先：如果有踩到路，就不減速
+            if (steppedOnRoad)
+            {
+                isOnTerrain = false;
+            }
+            else
+            {
+                isOnTerrain = steppedOnTerrain;
+            }
+        }
+
+
+
     }
 }
