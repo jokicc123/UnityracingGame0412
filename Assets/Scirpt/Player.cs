@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Unity.VisualScripting;
+using UnityEngine;
 
 namespace CHANG
 
@@ -17,6 +18,8 @@ namespace CHANG
         private Animator ani;               // 控制動畫的元件
         public float terrainSpeedMultiplier = 0.5f; // 踩到 Terrain 時的減速倍率
         private bool isOnTerrain = false;
+        public bool canMove = true; 
+
 
         float turnSmoothVelocity; // 用於平滑轉向的中間變數
 
@@ -36,8 +39,10 @@ namespace CHANG
         void Update()
         {
             // 每幀都呼叫移動方法
+            if (!canMove) return; //  在這阻擋移動邏輯
             Move();
             CheckTerrainBelow();
+         
         }
 
         void Move()

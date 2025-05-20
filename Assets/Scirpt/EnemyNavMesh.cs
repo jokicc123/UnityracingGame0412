@@ -1,64 +1,75 @@
 ﻿using System;
 using UnityEngine;
-using UnityEngine.AI; // 引入 NavMesh 的命名空間
+using UnityEngine.AI;
 
 namespace CHANG
 {
     public class EnemyNavMesh : MonoBehaviour
     {
-        public Transform player;  // 玩家物件
-        public Transform endPoint;  // 追擊結束的終點（可設置為某個位置）
-        private NavMeshAgent agent;  // NavMeshAgent 用於控制移動
-        public float speed = 3.5f;  // 速度
+        public Transform player;      // 玩家
+        public Transform endPoint;    // 可選的終點（例如逃跑點）
+        public float speed = 3.5f;    // 移動速度
+        public float attackDistance = 1.5f; // 攻擊距離
+        private NavMeshAgent agent;   // 控制移動
+        private Animator ani;
 
-        void Start()
+        private bool isAttacking = false;
+
+        void Awake()
         {
-            // 獲取 NavMeshAgent 元件
+            ani = GetComponentInChildren<Animator>();
             agent = GetComponent<NavMeshAgent>();
-
-            // 設定預設速度（可以根據需要調整）
             agent.speed = speed;
         }
 
         void Update()
         {
-            // 每幀追蹤玩家
-            ChasePlayer();
+            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-            // 檢查是否到達終點或碰到玩家
-            CheckArrival();
+            if (distanceToPlayer > attackDistance)
+            {
+                // 玩家距離遠 → 持續追擊
+                if (isAttacking)
+                {
+                    ani.SetBool("攻擊", false);
+                    ani.SetBool("移動", true);
+                    isAttacking = false;
+                }
+
+                agent.isStopped = false; // 允許移動
+                agent.SetDestination(player.position); // 持續追玩家
+            }
+            else
+            {
+                // 玩家在攻擊距離內 → 停下並攻擊
+                if (!isAttacking)
+                {
+                    ani.SetBool("移動", false);
+                    ani.SetBool("攻擊", true);
+                    isAttacking = true;
+                }
+
+                agent.isStopped = true; // 停止移動
+                LookAtPlayer(); // 面向玩家
+            }
+
+            CheckArrival(); // 可選檢查終點
         }
 
-        // 始終追擊玩家
-        private void ChasePlayer()
+        private void LookAtPlayer()
         {
-            // 設定 NavMeshAgent 的目標為玩家
-            agent.SetDestination(player.position);
+            // 使用Quaternion進行平滑旋轉，避免直接使用LookAt可能會造成問題
+            Vector3 direction = (player.position - transform.position).normalized;
+            Quaternion rotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, rotation, Time.deltaTime * 5f); // 5f可調整旋轉速度
         }
 
-        // 檢查是否到達終點或碰到玩家
         private void CheckArrival()
         {
-            // 檢查敵人是否到達終點
             if (Vector3.Distance(transform.position, endPoint.position) < 1f)
             {
-                StopChasing();  // 到達終點停止追擊
                 Debug.Log("Arrived at endpoint!");
             }
-
-            // 檢查敵人是否碰到玩家
-            if (Vector3.Distance(transform.position, player.position) < 1f)
-            {
-                StopChasing();  // 撞到玩家停止追擊
-                Debug.Log("Player is reached!");
-            }
-        }
-
-        // 停止追擊玩家
-        private void StopChasing()
-        {
-            // 停止移動
-            agent.SetDestination(transform.position);
         }
     }
 }
