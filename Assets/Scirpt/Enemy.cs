@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using UnityEngine;
 using UnityEngine.AI;
 
 namespace CHANG
@@ -7,13 +8,17 @@ namespace CHANG
     {
         private NavMeshAgent agent;
         private Transform playerTransform;
-        public Animator animator;
+        private Animator animator;
 
-        public float followDistance = 2f;   // 跟在玩家後方
-        public float attackRange = 1.2f;    // 攻擊距離
-        public float attackCooldown = 1.5f; // 攻擊冷卻時間
+        [Header("參數設定")]
+        public float followDistance = 2f;     // 與玩家保持的距離
+        public float attackRange = 2.5f;      // 攻擊距離
+        public float attackCooldown = 1.5f;   // 攻擊冷卻秒數
+        public bool canChase = true;          // 是否可追擊玩家
+        public bool isAttacking = false;      // 是否正在攻擊
+
         private float lastAttackTime;
-        public bool canChase = true; // 是否可以追擊玩家
+        private Coroutine attackCoroutine;
 
         void Awake()
         {
@@ -25,39 +30,72 @@ namespace CHANG
             {
                 playerTransform = player.transform;
             }
-          
-
+            else
+            {
+                Debug.LogWarning("找不到玩家！");
+            }
         }
 
         void Update()
         {
-            if (!canChase) return; // 如果不能追擊，則不執行以下邏輯
-            if (playerTransform == null) return;
+            if (!canChase || playerTransform == null) return;
 
             float distance = Vector3.Distance(transform.position, playerTransform.position);
+
             if (distance <= attackRange)
             {
-                agent.SetDestination(transform.position); // 停止移動
+                // 停止移動並面向玩家
+                agent.SetDestination(transform.position);
+                agent.velocity = Vector3.zero;
                 animator.SetFloat("移動", 0f);
+                transform.LookAt(new Vector3(playerTransform.position.x, transform.position.y, playerTransform.position.z));
 
-                if (Time.time - lastAttackTime >= attackCooldown)
+                if (Time.time - lastAttackTime >= attackCooldown && !isAttacking)
                 {
-                    transform.LookAt(playerTransform); // 確保面向玩家
+                    isAttacking = true;
                     animator.SetTrigger("攻擊");
+                    transform.LookAt(playerTransform);
                     lastAttackTime = Time.time;
+
+                    if (attackCoroutine != null)
+                        StopCoroutine(attackCoroutine);
+                    attackCoroutine = StartCoroutine(PerformAttackAfterDelay(0.4f)); // 0.4 秒後觸發傷害
                 }
             }
             else
             {
-                Vector3 behindPos = playerTransform.position - playerTransform.forward * followDistance;
-                agent.SetDestination(behindPos);
+                Vector3 targetPos = playerTransform.position - playerTransform.forward * followDistance;
+                agent.SetDestination(targetPos);
                 animator.SetFloat("移動", agent.velocity.magnitude);
-
-                float speed = agent.velocity.magnitude;
-                animator.SetFloat("移動", speed);
-
             }
-       
+        }
+
+        private IEnumerator PerformAttackAfterDelay(float delay)
+        {
+            yield return new WaitForSeconds(delay);
+
+            DealDamageToPlayer();
+
+            isAttacking = false;
+        }
+
+        public void DealDamageToPlayer()
+        {
+            if (playerTransform == null) return;
+
+            Player player = playerTransform.GetComponent<Player>();
+            if (player != null)
+            {
+                player.OnAttacked();
+                Debug.Log("已呼叫 Player.OnAttacked()");
+            }
+        }
+
+        public void OnPlayerDeath()
+        {
+            canChase = false;
+            agent.SetDestination(transform.position);
+            animator.SetFloat("移動", 0f);
         }
     }
 }

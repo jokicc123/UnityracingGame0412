@@ -1,5 +1,8 @@
 ﻿using Unity.VisualScripting;
 using UnityEngine;
+using System.Collections;
+using TMPro;
+
 
 namespace CHANG
 
@@ -18,7 +21,9 @@ namespace CHANG
         private Animator ani;               // 控制動畫的元件
         public float terrainSpeedMultiplier = 0.5f; // 踩到 Terrain 時的減速倍率
         private bool isOnTerrain = false;
-        public bool canMove = true; 
+        public bool canMove = true;
+        public bool isDead = false; // 是否死亡的狀態
+        public GameObject chickenPrefab; // 指派烤雞 prefab
 
 
         float turnSmoothVelocity; // 用於平滑轉向的中間變數
@@ -42,7 +47,7 @@ namespace CHANG
             if (!canMove) return; //  在這阻擋移動邏輯
             Move();
             CheckTerrainBelow();
-         
+
         }
 
         void Move()
@@ -138,8 +143,23 @@ namespace CHANG
                 isOnTerrain = steppedOnTerrain;
             }
         }
+        public void OnAttacked()
+        {
+            Debug.Log("Player 被攻擊了！");
 
+            if (chickenPrefab != null)
+            {
+                Instantiate(chickenPrefab, transform.position, Quaternion.identity);
+                Debug.Log("烤雞生成完成！");
+            }
+            else
+            {
+                Debug.LogWarning("chickenPrefab 沒有指派！");
+            }
 
+            gameObject.SetActive(false);
+
+        }
 
     }
 }
