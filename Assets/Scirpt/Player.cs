@@ -1,7 +1,5 @@
 ﻿using Unity.VisualScripting;
 using UnityEngine;
-using System.Collections;
-using TMPro;
 
 
 namespace CHANG
@@ -18,17 +16,18 @@ namespace CHANG
         // 用來參考攝影機方向的 Transform
         public Transform cameraTransform;
         private CharacterController chacon; // 控制角色移動的元件
-        private Animator ani;               // 控制動畫的元件
+      public Animator ani { get; private set; }      // 控制動畫的元件
         public float terrainSpeedMultiplier = 0.5f; // 踩到 Terrain 時的減速倍率
         private bool isOnTerrain = false;
         public bool canMove = true;
         public bool isDead = false; // 是否死亡的狀態
         public GameObject chickenPrefab; // 指派烤雞 prefab
+        public GameManager gameManager;
 
 
         float turnSmoothVelocity; // 用於平滑轉向的中間變數
 
-        void Start()
+       protected void Awake()
         {
             // 取得角色身上的 CharacterController 元件
             chacon = GetComponent<CharacterController>();
@@ -145,20 +144,35 @@ namespace CHANG
         }
         public void OnAttacked()
         {
-            Debug.Log("Player 被攻擊了！");
+            if (isDead) return;
+
+            isDead = true;
 
             if (chickenPrefab != null)
             {
                 Instantiate(chickenPrefab, transform.position, Quaternion.identity);
-                Debug.Log("烤雞生成完成！");
-            }
-            else
-            {
-                Debug.LogWarning("chickenPrefab 沒有指派！");
             }
 
+            // 隱藏玩家角色
             gameObject.SetActive(false);
 
+            // 呼叫 GameManager 顯示失敗畫面
+            if (gameManager != null)
+            {
+                gameManager.TriggerEnemyAttackGameOver("你被煮來吃了！");
+            }
+        }
+
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.CompareTag("終點") && !isDead)
+            {
+                Debug.Log("抵達終點！");
+
+                // 呼叫 GameManager 的勝利函式，傳入自己這個 Player 物件 (this)
+                gameManager.TriggerWin(this);
+            }
+          
         }
 
     }

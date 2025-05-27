@@ -74,20 +74,17 @@ namespace CHANG
         {
             yield return new WaitForSeconds(delay);
 
-            DealDamageToPlayer();
 
             isAttacking = false;
         }
 
-        public void DealDamageToPlayer()
+        private void OnTriggerEnter(Collider other)
         {
-            if (playerTransform == null) return;
-
-            Player player = playerTransform.GetComponent<Player>();
+            Player player = other.GetComponent<Player>();
             if (player != null)
             {
-                player.OnAttacked();
-                Debug.Log("已呼叫 Player.OnAttacked()");
+                animator.SetTrigger("攻擊");
+                player.OnAttacked(); // 觸發攻擊事件
             }
         }
 
