@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using TMPro;
-using Unity.VisualScripting;
+，using Unity.VisualScripting;
 
 namespace CHANG
 {
@@ -64,7 +64,6 @@ namespace CHANG
 
             while (timeLeft > 0)
             {
-                // 顯示格式：mm:ss
                 int minutes = timeLeft / 60;
                 int seconds = timeLeft % 60;
                 countdownText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
@@ -72,8 +71,11 @@ namespace CHANG
                 yield return new WaitForSeconds(1f);
                 timeLeft--;
             }
-        
+
+            countdownText.text = "00:00"; // 顯示時間到
+            TriggerGameOver("你被拋棄了！");
         }
+
 
         public void TriggerWin(Player player)
         {
