@@ -10,6 +10,8 @@ namespace CHANG
         public float boostedSpeed = 10f;
         public float slowedSpeed = 2f;
         public float effectDuration = 5f;
+        public float jumpHeight = 2f;
+        public float jumpSpeed = 4f;
         public Transform cameraTransform;
         private CharacterController chacon;
         public Animator ani { get; private set; }
@@ -21,7 +23,11 @@ namespace CHANG
         public GameManager gameManager;
         private float currentSpeed;
         private Coroutine speedCoroutine;
-        float turnSmoothVelocity;
+
+        // 跳躍相關
+        private bool isJumping = false;
+        private float jumpProgress = 0f;
+        private float lastYOffset = 0f;
 
         protected void Awake()
         {
@@ -40,57 +46,76 @@ namespace CHANG
 
             Move();
             CheckTerrainBelow();
-
-            // 可選：使用 Translate 額外位移
-            float move = Input.GetAxis("Vertical") * currentSpeed * Time.deltaTime;
-            transform.Translate(Vector3.forward * move);
-
-            //if (Input.GetKeyDown(KeyCode.P))
-            //{
-            //  Debug.Log("手動播放吃道具音效");
-            //MusicManager.Instance.PlayConsumeitemClip();
-            //}
-
+            HandleJump();
         }
 
         void Move()
         {
-            float h = Input.GetAxis("Horizontal");
-            float v = Input.GetAxis("Vertical");
-            Vector3 direction = new Vector3(h, 0f, v).normalized;
+            if (!canMove) return;
 
-            if (direction.magnitude >= 0.1f)
+            float forwardInput = Input.GetAxis("Vertical");  // W/S
+            float turnInput = Input.GetAxis("Horizontal");   // A/D
+
+            // 旋轉角色
+            if (Mathf.Abs(turnInput) > 0.1f)
             {
-                if (v > 0 || h != 0)
-                {
-                    float targetAngle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg + cameraTransform.eulerAngles.y;
-                    float angle = Mathf.SmoothDampAngle(transform.eulerAngles.y, targetAngle, ref turnSmoothVelocity, 0.1f);
-                    transform.rotation = Quaternion.Euler(0f, angle, 0f);
-                }
+                float turnAmount = turnInput * rotationSpeed * Time.deltaTime;
+                transform.Rotate(0, turnAmount, 0);
+            }
 
-                Vector3 moveDir = Quaternion.Euler(0f, transform.eulerAngles.y, 0f) * Vector3.forward;
+            // 前進方向
+            Vector3 moveDir = transform.forward * forwardInput;
 
-                if (v < 0)
-                {
-                    moveDir = -moveDir;
-                }
-
+            if (moveDir.magnitude >= 0.1f)
+            {
                 float finalSpeed = currentSpeed;
-
                 if (isOnTerrain)
                     finalSpeed *= terrainSpeedMultiplier;
 
-                chacon.Move(moveDir.normalized * finalSpeed * Time.deltaTime);
+                Vector3 horizontalMove = moveDir.normalized * finalSpeed * Time.deltaTime;
+
+                // 水平移動（跳躍時仍可移動）
+                chacon.Move(horizontalMove);
             }
             else
             {
+                // 不移動時，必須傳 Vector3.zero 讓CharacterController處理碰撞
                 chacon.Move(Vector3.zero);
             }
 
-            // ✅ 只依照移動方向控制動畫，不乘 Shift 倍率
-            ani.SetFloat("移動", direction.magnitude);
+            ani.SetFloat("移動", Mathf.Abs(forwardInput));  // 移動動畫
+
+            // 按空白鍵觸發跳躍（只在非跳躍狀態下）
+            if (!isJumping && Input.GetKeyDown(KeyCode.Space))
+            {
+                isJumping = true;
+                jumpProgress = 0f;
+                lastYOffset = 0f;
+                ani.SetTrigger("跳躍");  // 若有跳躍動畫
+            }
         }
 
+        void HandleJump()
+        {
+            if (!isJumping) return;
+
+            jumpProgress += Time.deltaTime * jumpSpeed;
+            if (jumpProgress > 1f) jumpProgress = 1f;
+
+            float currentYOffset = jumpHeight * Mathf.Sin(Mathf.PI * jumpProgress);
+            float deltaYOffset = currentYOffset - lastYOffset;
+
+            Vector3 verticalMove = new Vector3(0, deltaYOffset, 0);
+            chacon.Move(verticalMove);
+
+            lastYOffset = currentYOffset;
+
+            if (jumpProgress >= 1f)
+            {
+                isJumping = false;
+                lastYOffset = 0f;
+            }
+        }
 
         void CheckTerrainBelow()
         {
@@ -149,7 +174,6 @@ namespace CHANG
             }
             else if (other.gameObject.CompareTag("敵人"))
             {
-                // 通知 MusicManager 播放音效
                 MusicManager.Instance.PlayScream();
             }
 
