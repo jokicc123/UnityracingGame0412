@@ -85,7 +85,7 @@ namespace CHANG
 
             foreach (var enemy in enemies)
             {
-                enemy.canChase = false; // 停止敵人追擊
+                enemy.StopChase(); // 停止敵人追擊
             }
 
             winPanel.SetActive(true); // 顯示勝利畫面
@@ -101,7 +101,7 @@ namespace CHANG
 
             foreach (var enemy in enemies)
             {
-                enemy.canChase = false;
+                enemy.StopChase();
             }
             uiManager.ShowGameOver();
             gameOverPanel.SetActive(true);
@@ -116,7 +116,7 @@ namespace CHANG
 
             foreach (var enemy in enemies)
             {
-                enemy.canChase = false;
+                enemy.StopChase();
             }
 
             uiManager.ShowGameOver();

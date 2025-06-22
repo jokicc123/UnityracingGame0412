@@ -88,11 +88,29 @@ namespace CHANG
             }
         }
 
-        public void OnPlayerDeath()
+        public void StopChase()
         {
             canChase = false;
-            agent.SetDestination(transform.position);
-            animator.SetFloat("移動", 0f);
+
+            if (agent != null)
+            {
+                agent.isStopped = true;          // 停止 NavMeshAgent 導航
+                agent.velocity = Vector3.zero;   // 強制速度歸零（保險）
+                agent.SetDestination(transform.position); // 停在原地
+            }
+
+            if (animator != null)
+            {
+                animator.SetFloat("移動", 0f);   // 停止移動動畫
+            }
+
+            if (attackCoroutine != null)
+            {
+                StopCoroutine(attackCoroutine);  // 停止攻擊協程
+                attackCoroutine = null;
+            }
+
+            isAttacking = false; // 重設狀態（可選）
         }
     }
 }
