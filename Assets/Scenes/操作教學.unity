@@ -921,7 +921,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "WASD\u63A7\u5236\u524D\u9032\u65B9\u5411\r\n\n\n"
+  m_text: "WASD\u63A7\u5236\u524D\u9032\u65B9\u5411\n\u7A7A\u767D\u9375\u662F\u8DF3\u8E8D\r\n\n\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 9f56a18c7bab2e74390df4ea942f31b1, type: 2}
   m_sharedMaterial: {fileID: 2405748637604533952, guid: 9f56a18c7bab2e74390df4ea942f31b1, type: 2}
