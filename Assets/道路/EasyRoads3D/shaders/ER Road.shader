@@ -1,4 +1,4 @@
-// © 2024 EasyRoads3D
+ï»¿// ?2024 EasyRoads3D
 // This is a standard road shader  
 // Standard 3D Project Usage: Set Material Render Queue to AlphaTest 2450 
 Shader "EasyRoads3D/ER Road"

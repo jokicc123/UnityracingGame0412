@@ -1,97 +1,84 @@
 ﻿using UnityEngine;
-using System.Collections;
+using System;
 
 namespace CHANG
 {
     public class Player : MonoBehaviour
     {
+        [Header("移動參數")]
+        public float walkSpeed = 5f;
+        public float runSpeed = 10f;
         public float rotationSpeed = 10f;
-        public float normalSpeed = 5f;
-        public float boostedSpeed = 10f;
-        public float slowedSpeed = 2f;
-        public float effectDuration = 5f;
+
+        [Header("跳躍參數")]
         public float jumpHeight = 2f;
         public float jumpSpeed = 4f;
-        public Transform cameraTransform;
-        private CharacterController chacon;
-        public Animator ani { get; private set; }
-        public float terrainSpeedMultiplier = 0.5f;
-        private bool isOnTerrain = false;
-        public bool canMove = true;
-        public bool isDead = false;
-        public GameObject chickenPrefab;
-        public GameManager gameManager;
-        private float currentSpeed;
-        private Coroutine speedCoroutine;
 
-        // 跳躍相關
+        [Header("組件")]
+        public Transform cameraTransform;
+        private CharacterController controller;
+        public Animator ani { get; private set; }
+
+        // 玩家死亡委派事件
+        public static Action OnPlayerDead;
+
         private bool isJumping = false;
         private float jumpProgress = 0f;
         private float lastYOffset = 0f;
 
-        protected void Awake()
+        void Awake()
         {
-            chacon = GetComponent<CharacterController>();
+            controller = GetComponent<CharacterController>();
             ani = GetComponent<Animator>();
 
             if (cameraTransform == null && Camera.main != null)
                 cameraTransform = Camera.main.transform;
-
-            currentSpeed = normalSpeed;
         }
 
         void Update()
         {
-            if (!canMove) return;
-
             Move();
-            CheckTerrainBelow();
             HandleJump();
         }
 
         void Move()
         {
-            if (!canMove) return;
-
-            float forwardInput = Input.GetAxis("Vertical");  // W/S
-            float turnInput = Input.GetAxis("Horizontal");   // A/D
+            float forwardInput = Input.GetAxis("Vertical");   // W/S
+            float turnInput = Input.GetAxis("Horizontal");    // A/D
 
             // 旋轉角色
             if (Mathf.Abs(turnInput) > 0.1f)
             {
-                float turnAmount = turnInput * rotationSpeed * Time.deltaTime;
-                transform.Rotate(0, turnAmount, 0);
+                transform.Rotate(0, turnInput * rotationSpeed * Time.deltaTime, 0);
             }
 
-            // 前進方向
+            // 移動方向
             Vector3 moveDir = transform.forward * forwardInput;
 
             if (moveDir.magnitude >= 0.1f)
             {
-                float finalSpeed = currentSpeed;
-                if (isOnTerrain)
-                    finalSpeed *= terrainSpeedMultiplier;
+                // 判斷是否跑步
+                float speed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
 
-                Vector3 horizontalMove = moveDir.normalized * finalSpeed * Time.deltaTime;
-
-                // 水平移動（跳躍時仍可移動）
-                chacon.Move(horizontalMove);
+                Vector3 horizontalMove = moveDir.normalized * speed * Time.deltaTime;
+                controller.Move(horizontalMove);
             }
             else
             {
-                // 不移動時，必須傳 Vector3.zero 讓CharacterController處理碰撞
-                chacon.Move(Vector3.zero);
+                controller.Move(Vector3.zero);
             }
 
-            ani.SetFloat("移動", Mathf.Abs(forwardInput));  // 移動動畫
+            // 更新動畫
+            if (ani != null)
+                ani.SetFloat("移動", Mathf.Abs(forwardInput));
 
-            // 按空白鍵觸發跳躍（只在非跳躍狀態下）
+            // 按空白鍵跳躍
             if (!isJumping && Input.GetKeyDown(KeyCode.Space))
             {
                 isJumping = true;
                 jumpProgress = 0f;
                 lastYOffset = 0f;
-                ani.SetTrigger("跳躍");  // 若有跳躍動畫
+                ani?.SetTrigger("跳躍");
             }
         }
 
@@ -100,14 +87,12 @@ namespace CHANG
             if (!isJumping) return;
 
             jumpProgress += Time.deltaTime * jumpSpeed;
-            if (jumpProgress > 1f) jumpProgress = 1f;
+            jumpProgress = Mathf.Clamp01(jumpProgress);
 
             float currentYOffset = jumpHeight * Mathf.Sin(Mathf.PI * jumpProgress);
             float deltaYOffset = currentYOffset - lastYOffset;
 
-            Vector3 verticalMove = new Vector3(0, deltaYOffset, 0);
-            chacon.Move(verticalMove);
-
+            controller.Move(new Vector3(0, deltaYOffset, 0));
             lastYOffset = currentYOffset;
 
             if (jumpProgress >= 1f)
@@ -117,85 +102,18 @@ namespace CHANG
             }
         }
 
-        void CheckTerrainBelow()
+        // 玩家死亡
+        public void Dead()
         {
-            Ray ray = new Ray(transform.position + Vector3.up * 0.5f, Vector3.down);
-            RaycastHit[] hits = Physics.RaycastAll(ray, 2f);
-
-            bool steppedOnRoad = false;
-            bool steppedOnTerrain = false;
-
-            foreach (RaycastHit hit in hits)
-            {
-                if (hit.collider.CompareTag("道路")) steppedOnRoad = true;
-                if (hit.collider.GetComponent<Terrain>() != null) steppedOnTerrain = true;
-            }
-
-            isOnTerrain = !steppedOnRoad && steppedOnTerrain;
+            ani?.SetTrigger("死亡");
+            OnPlayerDead?.Invoke();
         }
 
-        public void OnAttacked()
+        // 被敵人抓到
+        public void CaughtByEnemy()
         {
-            if (isDead) return;
-            isDead = true;
-
-            if (chickenPrefab != null)
-            {
-                Instantiate(chickenPrefab, transform.position, Quaternion.identity);
-            }
-
-            gameObject.SetActive(false);
-
-            if (gameManager != null)
-            {
-                gameManager.TriggerEnemyAttackGameOver("你被煮來吃了！");
-            }
-        }
-
-        private void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("終點") && !isDead)
-            {
-                gameManager.TriggerWin(this);
-            }
-
-            // 吃道具（加速 / 減速）
-            if (other.CompareTag("加速"))
-            {
-                ApplySpeedBoost();
-                MusicManager.Instance.PlayConsumeitemClip();
-                Destroy(other.gameObject);
-            }
-            else if (other.CompareTag("減速"))
-            {
-                ApplySpeedSlow();
-                MusicManager.Instance.PlayConsumeitemClip();
-                Destroy(other.gameObject);
-            }
-            else if (other.gameObject.CompareTag("敵人"))
-            {
-                MusicManager.Instance.PlayScream();
-            }
-
-        }
-
-        public void ApplySpeedBoost()
-        {
-            if (speedCoroutine != null) StopCoroutine(speedCoroutine);
-            speedCoroutine = StartCoroutine(TempSpeedChange(boostedSpeed));
-        }
-
-        public void ApplySpeedSlow()
-        {
-            if (speedCoroutine != null) StopCoroutine(speedCoroutine);
-            speedCoroutine = StartCoroutine(TempSpeedChange(slowedSpeed));
-        }
-
-        IEnumerator TempSpeedChange(float newSpeed)
-        {
-            currentSpeed = newSpeed;
-            yield return new WaitForSeconds(effectDuration);
-            currentSpeed = normalSpeed;
+            Debug.Log("玩家被抓到！");
+            Dead(); // 呼叫死亡事件
         }
     }
 }
